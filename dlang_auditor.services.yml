@@ -1,0 +1,5 @@
+services:
+  dlang_auditor.commands:
+    class: Drupal\dlang_auditor\Commands\AuditCommands
+    tags:
+      - { name: drush.command }
