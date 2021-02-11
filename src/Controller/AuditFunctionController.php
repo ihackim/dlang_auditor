@@ -62,7 +62,60 @@ class AuditFunctionController extends ControllerBase {
    * @return void
    */
   public function getThemes() {
+    // Fetch the themes.
+    $theme_list = \Drupal::service('extension.list.theme')->getList();
+    // Get the default theme.
+    $active_theme = \Drupal::config('system.theme')->get('default');
+    $themes = [];
+    $theme_output = [];
+    $default_path = '';
+    // Prepare Themes data for convertion to csv.
+    $count = 0;
+    foreach( $theme_list as $key => $value ){
+      $themes[ $count++ ] = [
+        'Theme' => $value->info['name'],
+        'Machine Name' => $value->getName(),
+        'Version' => $value->info['version'],
+        'Type' => $value->info['package'],
+        'Status' => ($value->status == 1 ? 'Enabled' : 'Disabled')
+      ];
+      if( $value->getName() == $active_theme ){
+        $default_path = $value->subpath;
+      }
+    }
+    function scanDirAndSubdir( $dir, &$files = [] ) {
+      // Fetch directories.
+      $paths = scandir( $dir );
+      foreach ( $paths as $key => $filename ) {
+          $file = realpath( $dir . DIRECTORY_SEPARATOR . $filename );
+          if (!is_dir( $file )) {
+              $files[] = $file;
+          } 
+          elseif ( $filename != "." && $filename != ".." ) {
+              scanDirAndSubdir( $file, $files );
+              $files[] = $file;
+          }
+      }
+      return $files;
+    }
+    $files = scanDirAndSubdir( $default_path );
+    foreach ( $files as $key => $filename ) {
+      if ( strpos( $filename, '.twig') !== FALSE ) {
+          $twig_files[]=strstr( $filename,'/custom');
+      }
+      elseif ( strpos( $filename, '.js') !== FALSE ){
+        $js_files[]=strstr($filename,'/custom');
+      }
+      elseif ( strpos( $filename, '.css') !== FALSE ){
+        $css_files[]=strstr( $filename,'/custom' );
+      }
+    }
+    $theme_output['Themes'] = $themes;
+    $theme_output['JS'] = $js_files;
+    $theme_output['Twig'] = $twig_files;
+    $theme_output['CSS'] = $css_files;
 
+    return $theme_output;
   }
 
   /**
@@ -278,7 +331,17 @@ class AuditFunctionController extends ControllerBase {
    * @return void
    */
   public function getBlockTypes() {
+    // Fetch block types with data needed.
+    $block_types_entity = \Drupal::entityTypeManager()->getStorage('block_content_type')->loadMultiple();
+    $count = 0;
+    foreach ($block_types_entity as $key => $value) {
+        $block_types[$count++] = [
+          'Machine Name' => $key,
+          'Name' => $value->label(),
+        ];
+    }
 
+    return $block_types;
   }
 
   /**
@@ -287,7 +350,22 @@ class AuditFunctionController extends ControllerBase {
    * @return void
    */
   public function getBlocks() {
+    // Fetch blocks content with data needed.
+    $database = \Drupal::database();
+    $query = $database->query("SELECT id, type, langcode, status, info FROM block_content_field_data;");
+    $result = $query->fetchAll();
+    // Prepare Block Contents data for convertion to csv.
+    $count = 0;
+    foreach( $result as $fields ){
+        $block_contents[$count++] = [
+          'Machine Name' => $fields->type,
+          'Name' => $fields->info,
+          'Status' => ( $fields->status == 1 ? 'Enabled' : 'Disabled' ),
+          'Language' => $fields->langcode,
+        ];
+    }
 
+    return $block_contents;
   }
 
   /**
