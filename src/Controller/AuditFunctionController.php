@@ -90,7 +90,7 @@ class AuditFunctionController extends ControllerBase {
           $file = realpath( $dir . DIRECTORY_SEPARATOR . $filename );
           if (!is_dir( $file )) {
               $files[] = $file;
-          } 
+          }
           elseif ( $filename != "." && $filename != ".." ) {
               scanDirAndSubdir( $file, $files );
               $files[] = $file;
@@ -170,10 +170,10 @@ class AuditFunctionController extends ControllerBase {
     }
 
     // Prepare data for csv export.
-    $content_types = [];
+    $content_type = [];
     $count = 0;
     foreach ($content_types as $content) {
-      $content_types[$count++] = [
+      $content_type[$count++] = [
         'Machine Name' => $content['machine_name'],
         'Label' => $content['label'],
         'Count' => $content['count_nid'],
@@ -181,7 +181,7 @@ class AuditFunctionController extends ControllerBase {
       ];
     }
 
-    return $content_types;
+    return $content_type;
   }
 
   /**
@@ -455,6 +455,44 @@ class AuditFunctionController extends ControllerBase {
     }
 
     return $menu_items;
+  }
+
+  /**
+   * Generates csv file and save it to the root directory.
+   *
+   * @param string $type
+   * @param array $data
+   * @return void
+   */
+  public static function generateCsv($type ,$data) {
+    $path = DRUPAL_ROOT. '/language_audit/.';
+    $dirname = dirname($path);
+    if (!is_dir($dirname))
+    {
+        mkdir($path, 0775, true);
+    }
+
+    // Get the Headers.
+    foreach($data as $key => $value ){
+      $headers = array_keys($value);
+    }
+
+    // Create file name.
+    if ($type == 'content_type_fields'){
+      mkdir($path. '' .$type. '/.', 0775, true);
+      $path = $path. 'content-fields/.';
+    }
+
+    // Store to csv file.
+    $fp = fopen($path. '/' .$type. '.csv', 'w');
+    fputcsv($fp, $headers);
+
+    foreach ( $data as $fields ){
+      fputcsv($fp, $fields);
+    }
+
+    // Close the file.
+    fclose($fp);
   }
 
 }
