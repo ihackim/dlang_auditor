@@ -99,22 +99,56 @@ class AuditFunctionController extends ControllerBase {
       return $files;
     }
     $files = scanDirAndSubdir( $default_path );
+    $theme_files = [];
     foreach ( $files as $key => $filename ) {
       if ( strpos( $filename, '.twig') !== FALSE ) {
-          $twig_files[]=strstr( $filename,'/custom');
+        $theme_files['twig'][]= [
+          'Theme' => strstr( $filename,'/custom'),
+          'Machine Name' => '',
+          'Version' => '',
+          'Type' => '',
+          'Status' => ''
+        ];
       }
       elseif ( strpos( $filename, '.js') !== FALSE ){
-        $js_files[]=strstr($filename,'/custom');
+        $theme_files['js'][]= [
+          'Theme' => strstr( $filename,'/custom'),
+          'Machine Name' => '',
+          'Version' => '',
+          'Type' => '',
+          'Status' => ''
+        ];
       }
       elseif ( strpos( $filename, '.css') !== FALSE ){
-        $css_files[]=strstr( $filename,'/custom' );
+        $theme_files['css'][]= [
+          'Theme' => strstr( $filename,'/custom'),
+          'Machine Name' => '',
+          'Version' => '',
+          'Type' => '',
+          'Status' => ''
+        ];
       }
     }
-    $theme_output['Themes'] = $themes;
-    $theme_output['JS'] = $js_files;
-    $theme_output['Twig'] = $twig_files;
-    $theme_output['CSS'] = $css_files;
 
+    foreach($theme_files as $key=>$value){
+      $space = [
+        'Theme' => '',
+        'Machine Name' => '',
+        'Version' => '',
+        'Type' => '',
+        'Status' => ''
+      ];
+      $header = [
+        'Theme' => 'all '.$key.' in custom theme',
+        'Machine Name' => count($theme_files[$key]),
+        'Version' => '',
+        'Type' => '',
+        'Status' => ''
+      ];
+      array_unshift($theme_files[$key],$space,$header);
+    }
+  
+    $theme_output = array_merge($themes,$theme_files['js'],$theme_files['twig'],$theme_files['css']);
     return $theme_output;
   }
 
