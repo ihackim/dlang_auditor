@@ -15,7 +15,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return array
    */
-  public function getLanguages() {
+  public static function getLanguages() {
     // Get list of languages defined.
     $languages = \Drupal::languageManager()->getLanguages();
 
@@ -37,7 +37,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return array
    */
-  public function getModules() {
+  public static function getModules() {
     // Get list of modules.
     $module_list = \Drupal::service('extension.list.module')->getList();
 
@@ -61,7 +61,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getThemes() {
+  public static function getThemes() {
     // Fetch the themes.
     $theme_list = \Drupal::service('extension.list.theme')->getList();
     // Get the default theme.
@@ -147,9 +147,10 @@ class AuditFunctionController extends ControllerBase {
       ];
       array_unshift($theme_files[$key],$space,$header);
     }
-  
+
     $theme_output = array_merge($themes,$theme_files['js'],$theme_files['twig'],$theme_files['css']);
     return $theme_output;
+
   }
 
   /**
@@ -157,7 +158,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getUrlAlias() {
+  public static function getUrlAlias() {
     // Fetch URL aliases data.
     $url = \Drupal::entityTypeManager()->getStorage('path_alias')->loadMultiple();
 
@@ -180,7 +181,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getContentTypes() {
+  public static function getContentTypes() {
     // Fetch content types with machine name.
     $database = \Drupal::database();
     $types = \Drupal::entityTypeManager()
@@ -223,7 +224,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getContentFields() {
+  public static function getContentFields() {
     // Fetch content types with machine name.
     $database = \Drupal::database();
     $types = \Drupal::entityTypeManager()
@@ -246,17 +247,24 @@ class AuditFunctionController extends ControllerBase {
     }
 
     // Get fields per content type.
-    $bundle_fields = [];
+    $collection = [];
     foreach ($content_types as $content_type) {
+      $bundle_fields = [];
       $bundle = $content_type['machine_name'];
-      $fields = \Drupal::entityManager()->getFieldDefinitions('node', $bundle); //get fields of bundle xxx
-      // Generate table.
-      $table = "<table style='border: 1px solid black'><tr> <th>Label</th> <th>Machine Name</th> <th>Field Type</th> <th></th></tr>";
-      foreach ($fields as $key => $value) {
-        $table = $table . "<tr> <td>" .$value->getLabel(). "</td> <td>" .$key. "</td> <td> " .$value->getType(). "</td> </tr>";
+      $fields = \Drupal::entityManager()->getFieldDefinitions('node', $bundle);
+
+      foreach ($fields as $key => $val) {
+        $bundle_fields[] = [
+          'Label' => $val->getLabel(),
+          'Machine Name' => $key,
+          'Field Type' => $val->getType(),
+          'Translatable' => ($val->isTranslatable() ? 'Yes' : 'No'),
+        ];
       }
-      $table = $table . "</table>";
+      $collection[$bundle] = $bundle_fields;
     }
+
+    return $collection;
   }
 
   /**
@@ -264,7 +272,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getParagraphs() {
+  public static function getParagraphs() {
     // Get paragraph bundles.
     $entityManager = \Drupal::service('entity.manager');
     $bundles = $entityManager->getBundleInfo('paragraph');
@@ -276,7 +284,7 @@ class AuditFunctionController extends ControllerBase {
 
       // Get translatable fields.
       foreach ($paragraph as $field => $val) {
-        if (str_starts_with($field, 'field_') && $val->isTranslatable()) {
+        if ((strncmp($field, 'field_', 6) === 0) && $val->isTranslatable()) {
           array_push($translatable, $field);
         }
       }
@@ -298,7 +306,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getMedia() {
+  public static function getMedia() {
     // Fetch media data using Drupal API.
     $media_entity = \Drupal::entityTypeManager()->getStorage('media_type')->loadMultiple();
     foreach ( $media_entity as $key =>$value ){
@@ -339,20 +347,33 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getVocabularies() {
+  public static function getVocabularies() {
     // Get list of vocabularies.
     $vocabularies = \Drupal\taxonomy\Entity\Vocabulary::loadMultiple();
+    $entityManager = \Drupal::service('entity.manager');
 
     // Prepare vocabularies for csv export.
     $vocab = [];
     $count = 0;
     foreach ($vocabularies as $key => $vocabulary) {
-      $terms =\Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadTree($key);
+      $vocabs = $entityManager->getFieldDefinitions('taxonomy_term', $key);
+      $fields = [];
+
+      // Get translatable fields.
+      foreach ($vocabs as $field => $val) {
+        if (strncmp($field, 'field_', 6) === 0) {
+          array_push($fields, $field);
+        }
+      }
+      $fields = implode(' / ', $fields);
+
+      $terms = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadTree($key);
       $vocab[$count++] = [
         'Vocabulary' => $vocabulary->label(),
         'Vid' => $key,
         'Term Count' => count($terms),
-        'Translatable' => ($vocabulary->language()->isLocked() ? 'No' : 'Yes')
+        'Translatable' => ($vocabulary->language()->isLocked() ? 'No' : 'Yes'),
+        'Fields' => $fields,
       ];
     }
 
@@ -364,7 +385,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getBlockTypes() {
+  public static function getBlockTypes() {
     // Fetch block types with data needed.
     $block_types_entity = \Drupal::entityTypeManager()->getStorage('block_content_type')->loadMultiple();
     $count = 0;
@@ -383,12 +404,13 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getBlocks() {
+  public static function getBlocks() {
     // Fetch blocks content with data needed.
     $database = \Drupal::database();
     $query = $database->query("SELECT id, type, langcode, status, info FROM block_content_field_data;");
     $result = $query->fetchAll();
-    // Prepare Block Contents data for convertion to csv.
+
+    // Prepare Block Contents data for conversion to csv.
     $count = 0;
     foreach( $result as $fields ){
         $block_contents[$count++] = [
@@ -407,7 +429,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getMenus() {
+  public static function getMenus() {
 
   }
 
@@ -416,7 +438,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getViews() {
+  public static function getViews() {
     // Fetch Views with data needed.
     $views_entity = \Drupal::entityTypeManager()->getStorage('view')->loadMultiple();
 
@@ -435,7 +457,7 @@ class AuditFunctionController extends ControllerBase {
           }
         }
       }
-
+      $displays = implode(', ', $displays);
       $views[$count++] = [
         'Machine Name' => $key,
         'Name' => $value->label(),
@@ -452,7 +474,7 @@ class AuditFunctionController extends ControllerBase {
    *
    * @return void
    */
-  public function getConfigSettings() {
+  public static function getConfigSettings() {
     $menu_tree = \Drupal::menuTree();
     $parameters = new MenuTreeParameters();
     $parameters->setRoot('system.admin_config')->excludeRoot()->onlyEnabledLinks();
@@ -498,7 +520,7 @@ class AuditFunctionController extends ControllerBase {
    * @param array $data
    * @return void
    */
-  public static function generateCsv($type ,$data) {
+  public static function generateCsv($type, $data) {
     $path = DRUPAL_ROOT. '/language_audit/.';
     $dirname = dirname($path);
     if (!is_dir($dirname))
@@ -506,27 +528,65 @@ class AuditFunctionController extends ControllerBase {
         mkdir($path, 0775, true);
     }
 
-    // Get the Headers.
-    foreach($data as $key => $value ){
-      $headers = array_keys($value);
-    }
+
 
     // Create file name.
     if ($type == 'content_type_fields'){
-      mkdir($path. '' .$type. '/.', 0775, true);
-      $path = $path. 'content-fields/.';
+      $content_path = $path. '/content_types';
+      if (!is_dir($content_path)) {
+        mkdir($content_path, 0775, true);
+      }
+
+
+      foreach($data as $key => $value) {
+        // Get the Headers.
+        if (!empty($value)) {
+          foreach($value as $keys => $val ){
+            $headers = array_keys($val);
+          }
+        }
+
+        // Store to csv file.
+        $fp = fopen($content_path. '/' .$key. '.csv', 'w');
+        if (!empty($value)) {
+          fputcsv($fp, $headers);
+          foreach ($value as $fields ){
+            fputcsv($fp, $fields);
+          }
+        }
+        else {
+          fputcsv($fp, array('No available ' .$key. ' data found.'));
+        }
+
+        // Close the file.
+        fclose($fp);
+
+      }
+
     }
+    else {
+      // Get the Headers.
+      if (!empty($data)) {
+        foreach($data as $key => $value ){
+          $headers = array_keys($value);
+        }
+      }
 
-    // Store to csv file.
-    $fp = fopen($path. '/' .$type. '.csv', 'w');
-    fputcsv($fp, $headers);
+      // Store to csv file.
+      $fp = fopen($path. '/' .$type. '.csv', 'w');
+      if (!empty($data)) {
+        fputcsv($fp, $headers);
+        foreach ( $data as $fields ){
+          fputcsv($fp, $fields);
+        }
+      }
+      else {
+        fputcsv($fp, array('No available ' .$type. ' data found.'));
+      }
 
-    foreach ( $data as $fields ){
-      fputcsv($fp, $fields);
+      // Close the file.
+      fclose($fp);
     }
-
-    // Close the file.
-    fclose($fp);
   }
 
 }

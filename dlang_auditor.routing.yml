@@ -1,6 +1,6 @@
 dlang_auditor.test:
   path: '/admin/tables'
   defaults:
-    _controller: '\Drupal\dlang_auditor\Controller\AuditFunctionController::getParagraphs'
+    _controller: '\Drupal\dlang_auditor\Controller\AuditFunctionController::getContentFields'
   requirements:
     _permission: 'access content overview+access administration pages'
