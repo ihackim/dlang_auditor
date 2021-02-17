@@ -62,17 +62,26 @@ class AuditFunctionController extends ControllerBase {
    * @return void
    */
   public static function getThemes() {
-    // Fetch the themes.
-    $theme_list = \Drupal::service('extension.list.theme')->getList();
-    // Get the default theme.
-    $active_theme = \Drupal::config('system.theme')->get('default');
     $themes = [];
     $theme_output = [];
     $default_path = '';
+  
+    //lists of installed themes
+    if(\DRUPAL::VERSION>=8.8){
+      $theme_list = \Drupal::service('extension.list.theme')->getList();
+    }
+    else{
+      $theme_list = system_list('theme');
+    }
+    //fetch all info.yml theme path
+    $info_yml_theme_list = \Drupal::state()->get('system.theme.files');
+    //get active theme
+    $active_theme = \Drupal::config('system.theme')->get('default');
+
     // Prepare Themes data for convertion to csv.
-    $count = 0;
+
     foreach( $theme_list as $key => $value ){
-      $themes[ $count++ ] = [
+      $themes[] = [
         'Theme' => $value->info['name'],
         'Machine Name' => $value->getName(),
         'Version' => $value->info['version'],
@@ -83,6 +92,23 @@ class AuditFunctionController extends ControllerBase {
         $default_path = $value->subpath;
       }
     }
+    
+    // fetching info for uninstalled themes
+    if (\DRUPAL::VERSION<=8.8) {
+      foreach ($info_yml_theme_list as $key => $path) {
+        if (array_key_exists($key, $theme_list)==false) {
+          $info = Yaml::decode(file_get_contents($path));
+          $themes[] = [
+            'Theme' => $info['name'],
+            'Machine Name' => $key,
+            'Version' => $info['version'],
+            'Type' => $info['package'],
+            'Status' => 'Disabled'
+          ];
+        }
+      }
+    }
+    
     function scanDirAndSubdir( $dir, &$files = [] ) {
       // Fetch directories.
       $paths = scandir( $dir );
