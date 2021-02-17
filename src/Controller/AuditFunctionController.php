@@ -409,16 +409,22 @@ class AuditFunctionController extends ControllerBase {
     $database = \Drupal::database();
     $query = $database->query("SELECT id, type, langcode, status, info FROM block_content_field_data;");
     $result = $query->fetchAll();
-
+    // Fetch block types.
+    $block_entity_types = \Drupal::entityTypeManager()->getStorage('block_content_type')->loadMultiple();
     // Prepare Block Contents data for conversion to csv.
     $count = 0;
     foreach( $result as $fields ){
-        $block_contents[$count++] = [
-          'Machine Name' => $fields->type,
-          'Name' => $fields->info,
-          'Status' => ( $fields->status == 1 ? 'Enabled' : 'Disabled' ),
-          'Language' => $fields->langcode,
-        ];
+      foreach ( $block_entity_types as $key => $value){
+        if ( $key == $fields->type ){
+          $type = $value->label();
+        }
+      }
+      $block_contents[$count++] = [
+        'Type' => $type,
+        'Label' => $fields->info,
+        'Status' => ( $fields->status == 1 ? 'Enabled' : 'Disabled' ),
+        'Language' => $fields->langcode,
+      ];
     }
 
     return $block_contents;
